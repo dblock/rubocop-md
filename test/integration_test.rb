@@ -129,6 +129,87 @@ class RuboCop::Markdown::AnalyzeTest < Minitest::Test
       assert_includes output, "> puts \"stdin\""
       refute_includes output, RuboCop::Markdown::Preprocess::MARKER
       assert_equal expected, File.read(file)
+
+      File.write(config, "#{File.read(config)}Markdown/MaxLength:\n  Enabled: true\n  Max: false\n")
+      File.write(file, source)
+      output, status = Open3.capture2e(*arguments, file)
+      assert status.success?, output
+      assert_equal expected.sub("First paragraph\nstays wrapped.", "First paragraph stays wrapped."),
+                   File.read(file)
+    end
+  end
+
+  def test_prose_and_ruby_autocorrection
+    Dir.mktmpdir("rubocop-md") do |directory|
+      config = File.join(directory, ".rubocop.yml")
+      File.write(config, <<~YAML)
+        plugins:
+          - rubocop-md
+        AllCops:
+          NewCops: enable
+          SuggestExtensions: false
+        Markdown/MaxLength:
+          Enabled: true
+          Max: false
+        Style/StringLiterals:
+          EnforcedStyle: double_quotes
+      YAML
+      file = File.join(directory, "example.md")
+      File.write(file, "First paragraph\ncontinues.\n\n```ruby\nputs 'hello'\n```\n\nAnother\nparagraph.\n")
+      arguments = [
+        "bundle", "exec", "rubocop", "--config", config, "--cache", "false",
+        "-a", file
+      ]
+      output, status = Open3.capture2e(*arguments)
+
+      assert status.success?, output
+      assert_equal "First paragraph continues.\n\n```ruby\nputs \"hello\"\n```\n\nAnother paragraph.\n",
+                   File.read(file)
+      second_output, second_status = Open3.capture2e(*arguments)
+      assert second_status.success?, second_output
+      assert_includes second_output, "no offenses detected"
+
+      File.write(config, File.read(config).sub("Max: false", "Max: 18"))
+      output, status = Open3.capture2e(*arguments)
+      assert status.success?, output
+      assert_equal "First paragraph\ncontinues.\n\n```ruby\nputs \"hello\"\n```\n\nAnother paragraph.\n",
+                   File.read(file)
+
+      File.write(config, File.read(config).sub("Enabled: true", "Enabled: false"))
+      File.write(file, "This paragraph is longer than the configured limit.\n")
+      output, status = Open3.capture2e(*arguments)
+      assert status.success?, output
+      assert_equal "This paragraph is longer than the configured limit.\n", File.read(file)
+    end
+  end
+
+  def test_markdown_syntax_uses_standard_formatting_and_can_be_disabled
+    Dir.mktmpdir("rubocop-md") do |directory|
+      config = File.join(directory, ".rubocop.yml")
+      File.write(config, <<~YAML)
+        plugins:
+          - rubocop-md
+        AllCops:
+          DisabledByDefault: true
+          SuggestExtensions: false
+        Markdown/Syntax:
+          Enabled: true
+      YAML
+      File.write(File.join(directory, "example.md"), "[label][missing]\n")
+      environment = { "BUNDLE_GEMFILE" => ENV.fetch("BUNDLE_GEMFILE", File.expand_path("../Gemfile", __dir__)) }
+      arguments = ["bundle", "exec", "rubocop", "--config", config, "--cache", "false", "--format", "clang"]
+      output, errors, status = Open3.capture3(environment, *arguments, "example.md", chdir: directory)
+
+      assert_equal 1, status.exitstatus
+      assert_includes output, "example.md:1:1: W: Markdown/Syntax: No link definition"
+      assert_empty errors
+
+      output, errors, status = Open3.capture3(
+        environment, *arguments, "--except", "Markdown/Syntax", "example.md", chdir: directory
+      )
+      assert status.success?, output
+      assert_empty errors
+      assert_includes output, "no offenses detected"
     end
   end
 

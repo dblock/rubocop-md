@@ -5,6 +5,8 @@
 
 Run Rubocop against your Markdown files to make sure that code examples follow style guidelines and have valid syntax.
 
+Optionally enforce prose wrapping or one source line per paragraph with `Markdown/MaxLength`.
+
 <br/>
 
 <img src="https://cdn.evilmartians.com/badges/logo-no-label.svg" alt="Evil Martians logo" width="22" height="16" /> <b>RuboCop Markdown</b> is built by <b><a href="https://evilmartians.com/">Evil Martians</a></b>, an American design and engineering consultancy for <b>developer tools, AI, and cybersecurity startups</b>.
@@ -16,6 +18,7 @@ Run Rubocop against your Markdown files to make sure that code examples follow s
 - Preserves specified language (i.e., do not try to analyze "\`\`\`sh")
 - **Supports autocorrect 📝**
 - Parses backtick and tilde fences, indented code, and code blocks inside lists and blockquotes
+- Optionally wraps or unwraps prose paragraphs with `Markdown/MaxLength`
 
 This project was developed to keep [test-prof](https://github.com/test-prof/test-prof) guides consistent with Ruby style guide back in 2017. Since then, many popular Ruby projects adopted it, including:
 
@@ -125,6 +128,41 @@ Indented code blocks are treated as unlabeled snippets: they are checked when `M
 
 The original Markdown remains available through `processed_source.markdown_document.buffer` for prose plugins such as `rubocop-spellcheck`. `processed_source.buffer` retains the preprocessed Ruby source expected by Ruby cops. Prose ranges can be mapped with `markdown_document.processed_range`; diagnostics and corrections from either buffer retain their original Markdown locations and can be combined in the same run.
 
+### Markdown parser diagnostics
+
+Enable `Markdown/Syntax` to report Kramdown parser warnings, such as undefined link references or malformed HTML, as normal RuboCop offenses:
+
+```yml
+Markdown/Syntax:
+  Enabled: true
+```
+
+The cop is disabled by default, uses warning severity, and does not autocorrect. Standard formatters provide filenames, line numbers, and the cop name; `Enabled: false`, `--except Markdown/Syntax`, and inline disabling directives suppress it normally. Warnings without a usable source line are attached to the start of the file; multiple warnings on the same line are combined into one offense. Parser diagnostics are not a complete CommonMark validation, and enabling the cop can make previously non-blocking warnings fail lint. There is no separate parser-warning output on stderr.
+
+### Prose wrapping
+
+`Markdown/MaxLength` is an opt-in cop for prose paragraphs, including paragraphs inside lists and blockquotes. It is separate from `Layout/LineLength`, which checks Ruby snippets.
+
+To wrap prose at 80 characters, including list and blockquote prefixes:
+
+```yml
+Markdown/MaxLength:
+  Enabled: true
+  Max: 80
+```
+
+To enforce one source line per paragraph instead, set `Max: false`:
+
+```yml
+Markdown/MaxLength:
+  Enabled: true
+  Max: false
+```
+
+Both modes support `rubocop -a`. `Enabled: false` disables the cop entirely. Wrapping preserves list and blockquote prefixes and does not split inline code, links, inline HTML elements, or individual words; unbreakable content can therefore still exceed the limit and is reported without a correction. Unwrapping preserves intentional Markdown hard breaks, `<br>` boundaries, and line breaks inside these inline constructs. Code blocks, headings, tables, HTML blocks, and HTML-only paragraphs are ignored.
+
+Prose and Ruby snippets share the same parsed Markdown document, retaining compatibility with JRuby. Prose offenses are still reported when a Ruby snippet has invalid syntax, but RuboCop does not apply autocorrections to files with syntax errors.
+
 ### But if I want to use inline disabling some directive like in classic RuboCop?
 
 You can use this tricks
@@ -155,6 +193,7 @@ end of snippet
 - Preprocess Ruby snippets while preserving line numbers and recording container prefixes
 - Let RuboCop do its job
 - Map Ruby corrections back to the original Markdown, preserving indentation and list/blockquote prefixes
+- Inspect prose in the shared Markdown document and map its corrections into the shared source buffer
 
 ## Limitations
 

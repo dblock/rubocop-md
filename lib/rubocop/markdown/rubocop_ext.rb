@@ -29,8 +29,10 @@ module RuboCop
       end
 
       def ignored_offense?(cop_name, location)
-        return false if MARKDOWN_OFFENSE_COPS.include?(cop_name)
         return false if location.is_a?(Document::ProseRange)
+        if MARKDOWN_OFFENSE_COPS.include?(cop_name) || cop_name.start_with?("Markdown/")
+          return false
+        end
 
         location.source_line.start_with?("##{Preprocess::MARKER}")
       end
@@ -131,13 +133,40 @@ end)
 RuboCop::ProcessedSource.prepend(Module.new do
   attr_reader :markdown_document
 
+  def comments
+    return super unless @markdown_document
+
+    @markdown_comments ||= super.map { |comment| markdown_directive(comment) || comment }
+  end
+
   def parse(src, ...)
     # only process Markdown files
     if path && RuboCop::Markdown.markdown_file?(path)
+      @markdown_comments = nil
+      src = src.dup
+      RuboCop::Markdown::Preprocess.restore!(src)
       @markdown_document = RuboCop::Markdown::Document.new(src, path)
       src = RuboCop::Markdown::Preprocess.new(path).call(src, document: @markdown_document)
     end
     super
     @markdown_document.processed_buffer = @buffer if @markdown_document
+  end
+
+  private
+
+  def markdown_directive(comment)
+    return unless comment.text.start_with?("##{RuboCop::Markdown::Preprocess::MARKER}")
+
+    match = comment.text.match(
+      /(?:<!--|<span\b[^>]*>)\s*(#\s*rubocop:[^\n]*?)\s*(?:-->|<\/span>)\s*\z/
+    )
+    return unless match
+
+    location = comment.source_range
+    range = Parser::Source::Range.new(
+      location.source_buffer,
+      location.begin_pos + match.begin(1), location.begin_pos + match.end(1)
+    )
+    Parser::Source::Comment.new(range)
   end
 end)

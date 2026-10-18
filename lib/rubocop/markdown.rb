@@ -13,5 +13,8 @@ module RuboCop
     require_relative "markdown/rubocop_ext" if defined?(::RuboCop::ProcessedSource)
     require_relative "markdown/plugin"
     require_relative "markdown/document"
+    require_relative "cop/markdown/base"
+    require_relative "cop/markdown/max_length"
+    require_relative "cop/markdown/syntax"
   end
 end

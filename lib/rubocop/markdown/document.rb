@@ -49,6 +49,16 @@ module RuboCop
         rewriter.process
       end
 
+      def paragraphs
+        return enum_for(__method__) unless block_given?
+
+        walk(root) { |node| yield node if node.type == :p && node.options[:prose_source] }
+      end
+
+      def warnings
+        parsed.last
+      end
+
       def line(number)
         buffer.source_line(number)
       end
@@ -62,6 +72,64 @@ module RuboCop
         )
       end
 
+      def content_start(paragraph, number)
+        relative = number - paragraph.options[:location]
+        text = source_lines(paragraph).fetch(relative)
+        line(number).rindex(text) ||
+          raise("Cannot map Markdown paragraph source on line #{number}")
+      end
+
+      def line_numbers(paragraph)
+        first = paragraph.options[:location]
+        first..(first + source_lines(paragraph).length - 1)
+      end
+
+      def continuation_prefix(paragraph)
+        number = paragraph.options[:location]
+        prefix = line(number)[0...content_start(paragraph, number)]
+        prefix.gsub(/[-+*]|\d+[.)]/) { |marker| " " * marker.length }
+      end
+
+      def soft_breaks(paragraph)
+        return enum_for(__method__, paragraph) unless block_given?
+
+        numbers = line_numbers(paragraph)
+        (numbers.first...numbers.last).each do |number|
+          text = line(number)
+          next if text.end_with?("  ") || text[/\\+\z/].to_s.length.odd?
+
+          join = range(number, text.rstrip.length, number + 1, content_start(paragraph, number + 1))
+          next if atomic_ranges(paragraph).any? { |atom| atom.overlaps?(join) }
+
+          yield number
+        end
+      end
+
+      def atomic_ranges(paragraph)
+        return paragraph.options[:original_ranges] if paragraph.options[:original_ranges]
+
+        source = paragraph.options[:prose_source]
+        inline = ::Parser::Source::Buffer.new("(paragraph)", source: source)
+        paragraph.options[:original_ranges] ||= paragraph.options[:prose_atoms].map do |first, last|
+          start_line, start_column = inline.decompose_position(first)
+          end_line, end_column = inline.decompose_position(last)
+          first_line = paragraph.options[:location] + start_line - 1
+          last_line = paragraph.options[:location] + end_line - 1
+          range(
+            first_line, content_start(paragraph, first_line) + start_column,
+            last_line, content_start(paragraph, last_line) + end_column
+          )
+        end
+      end
+
+      def range(first_line, first_column, last_line = first_line, last_column = first_column)
+        ::Parser::Source::Range.new(
+          buffer,
+          buffer.line_range(first_line).begin_pos + first_column,
+          buffer.line_range(last_line).begin_pos + last_column
+        )
+      end
+
       def processed_range(original)
         return original if original.source_buffer.equal?(processed_buffer)
 
@@ -72,22 +140,20 @@ module RuboCop
         )
       end
 
-      def range(first_line, first_column, last_line, last_column)
-        ::Parser::Source::Range.new(
-          buffer,
-          buffer.line_range(first_line).begin_pos + first_column,
-          buffer.line_range(last_line).begin_pos + last_column
-        )
-      end
-
       private
 
+      def source_lines(paragraph)
+        paragraph.options[:source_lines] ||= paragraph.options[:prose_source].split("\n", -1)
+      end
+
       def root
-        @root ||= begin
-          root, warnings = Markdown::Parser.parse(buffer.source, hard_wrap: false)
-          warnings.each { |warning| warn "rubocop-md: #{warning}" }
-          root
-        end
+        parsed.first
+      end
+
+      def parsed
+        @parsed ||= Markdown::Parser.parse(
+          buffer.source, hard_wrap: false, gfm_quirks: %i[paragraph_end no_auto_typographic]
+        )
       end
 
       def walk(node, &block)
@@ -95,12 +161,12 @@ module RuboCop
         node.children.each { |child| walk(child, &block) }
       end
 
-      def line_offset(number)
-        processed_buffer.source_line(number).length - line(number).length
-      end
-
       def processed_position(number, column)
         processed_buffer.line_range(number).begin_pos + line_offset(number) + column
+      end
+
+      def line_offset(number)
+        processed_buffer.source_line(number).length - line(number).length
       end
     end
   end

@@ -11,8 +11,7 @@ module RuboCop
           name: "rubocop-md",
           version: VERSION,
           homepage: "https://github.com/rubocop/rubocop-md",
-          description: "Run RuboCop against your Markdown files to make sure " \
-                       "that code examples follow style guidelines."
+          description: "Run RuboCop against Ruby code examples and prose in Markdown files."
         )
       end
 

@@ -8,8 +8,8 @@ Gem::Specification.new do |spec|
   spec.authors       = ["Vladimir Dementyev"]
   spec.email         = ["dementiev.vm@gmail.com"]
 
-  spec.summary       = %q{Run RuboCop against your Markdown files to make sure that code examples follow style guidelines.}
-  spec.description   = %q{Run RuboCop against your Markdown files to make sure that code examples follow style guidelines.}
+  spec.summary       = "Run RuboCop against Ruby code examples and prose in Markdown files."
+  spec.description   = "Run RuboCop against Ruby code examples and prose in Markdown files."
   spec.homepage      = "https://github.com/rubocop/rubocop-md"
   spec.license       = "MIT"
 

@@ -7,6 +7,18 @@ Markdown:
   WarnInvalid: true
   Autodetect: true
 
+Markdown/Syntax:
+  Description: "Report Markdown parser warnings as offenses."
+  Enabled: false
+  Severity: warning
+  VersionAdded: "2.1"
+
+Markdown/MaxLength:
+  Description: "Wrap prose lines, or unwrap paragraphs when Max is false."
+  Enabled: false
+  Max: 80
+  VersionAdded: "2.1"
+
 # Keep in sync with MARKDOWN_EXTENSIONS
 Layout/CommentIndentation: &markdown_excludes
   Exclude:

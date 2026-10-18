@@ -75,3 +75,4 @@ Metrics/BlockLength:
 Metrics/ClassLength:
   Exclude:
     - 'test/**/*.rb'
+    - 'lib/rubocop/markdown/document.rb'
