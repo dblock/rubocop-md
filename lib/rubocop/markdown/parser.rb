@@ -13,6 +13,22 @@ module RuboCop
         (.*?)^[ ]{0,3}\1\2*[ \t]*\n
       /mx.freeze
 
+      class << self
+        def parse(source, options = {})
+          options = options.dup
+          source = without_front_matter(source) unless options.delete(:ignore_front_matter) == false
+          super
+        end
+
+        private
+
+        def without_front_matter(source)
+          source.sub(/\A(?:\uFEFF)?---[ \t]*\r?\n.*?^(?:---|\.\.\.)[ \t]*(?:\r?\n|\z)/m) do |header|
+            header.gsub(/[^\r\n]/, " ")
+          end
+        end
+      end
+
       protected
 
       def parse_codeblock_fenced

@@ -12,9 +12,10 @@ module RuboCop
       attr_reader :buffer, :code_prefixes
       attr_accessor :processed_buffer
 
-      def initialize(source, path)
+      def initialize(source, path, ignore_front_matter: true)
         @buffer = ::Parser::Source::Buffer.new(path, source: source)
         @code_prefixes = {}
+        @ignore_front_matter = ignore_front_matter
       end
 
       def code_blocks
@@ -47,6 +48,13 @@ module RuboCop
           rewriter.replace(original_range(range), text)
         end
         rewriter.process
+      end
+
+      def ignore_front_matter=(value)
+        return if @ignore_front_matter == value
+
+        @ignore_front_matter = value
+        @parsed = nil
       end
 
       def paragraphs
@@ -152,7 +160,8 @@ module RuboCop
 
       def parsed
         @parsed ||= Markdown::Parser.parse(
-          buffer.source, hard_wrap: false, gfm_quirks: %i[paragraph_end no_auto_typographic]
+          buffer.source, hard_wrap: false, gfm_quirks: %i[paragraph_end no_auto_typographic],
+                         ignore_front_matter: @ignore_front_matter
         )
       end
 

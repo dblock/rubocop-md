@@ -6,6 +6,7 @@ inherit_mode:
 Markdown:
   WarnInvalid: true
   Autodetect: true
+  IgnoreFrontMatter: true
 
 Markdown/Syntax:
   Description: "Report Markdown parser warnings as offenses."

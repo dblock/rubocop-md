@@ -139,14 +139,22 @@ RuboCop::ProcessedSource.prepend(Module.new do
     @markdown_comments ||= super.map { |comment| markdown_directive(comment) || comment }
   end
 
+  def config=(config)
+    super
+    return unless @markdown_document
+
+    @markdown_document.ignore_front_matter = config&.dig("Markdown", "IgnoreFrontMatter") != false
+  end
+
   def parse(src, ...)
     # only process Markdown files
     if path && RuboCop::Markdown.markdown_file?(path)
       @markdown_comments = nil
       src = src.dup
       RuboCop::Markdown::Preprocess.restore!(src)
-      @markdown_document = RuboCop::Markdown::Document.new(src, path)
-      src = RuboCop::Markdown::Preprocess.new(path).call(src, document: @markdown_document)
+      preprocessor = RuboCop::Markdown::Preprocess.new(path)
+      @markdown_document = preprocessor.build_document(src)
+      src = preprocessor.call(src, document: @markdown_document)
     end
     super
     @markdown_document.processed_buffer = @buffer if @markdown_document

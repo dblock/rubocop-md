@@ -33,7 +33,13 @@ module RuboCop
         @config = Markdown.config_store.for(file)
       end
 
-      def call(src, document: Document.new(src, @file))
+      def build_document(src)
+        Document.new(
+          src, @file, ignore_front_matter: config.dig("Markdown", "IgnoreFrontMatter") != false
+        )
+      end
+
+      def call(src, document: build_document(src))
         code = {}
         document.code_blocks.each do |block|
           syntax = block.options[:lang].to_s

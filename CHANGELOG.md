@@ -7,6 +7,8 @@
 - Fix false indentation offenses in and after list-nested code blocks ([#28](https://github.com/rubocop/rubocop-md/issues/28), [#51](https://github.com/rubocop/rubocop-md/pull/51), [@dblock][], [@Copilot][]).
 - Add opt-in `Markdown/Syntax` to report parser warnings through normal RuboCop formatting and configuration instead of stderr ([#50](https://github.com/rubocop/rubocop-md/pull/50), [@dblock][], [@Copilot][]).
 
+- Add `Markdown.IgnoreFrontMatter`, enabled by default, to preserve leading YAML metadata during prose formatting ([#53](https://github.com/rubocop/rubocop-md/pull/53), [@dblock][], [@Copilot][]).
+
 - Add opt-in `Markdown/MaxLength` to wrap prose at a configurable length or unwrap paragraphs with `Max: false`, including autocorrection ([#50](https://github.com/rubocop/rubocop-md/pull/50), [@dblock][], [@Copilot][]).
 
 ## 2.0.4 (2026-01-28)

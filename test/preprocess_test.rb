@@ -25,6 +25,17 @@ class RuboCop::Markdown::PreprocessTest < Minitest::Test
     assert_equal expected, subject.call(source)
   end
 
+  def test_front_matter_configuration_applies_to_snippet_extraction
+    source = "---\nexample: |\n\n    puts 'metadata'\n\n---\n"
+    preprocessor = subject
+
+    assert_includes preprocessor.call(source), "#<--rubocop/md-->    puts 'metadata'"
+    preprocessor.define_singleton_method(:config) do
+      { "Markdown" => { "IgnoreFrontMatter" => false } }
+    end
+    assert_includes preprocessor.call(source), "\nputs 'metadata'\n"
+  end
+
   def test_with_one_snippet
     source = <<~SOURCE
       # Header

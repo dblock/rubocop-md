@@ -35,6 +35,13 @@ class RuboCop::Markdown::SyntaxTest < Minitest::Test
     assert_includes offenses.first.message, "link ID 'also-missing'"
   end
 
+  def test_front_matter_configuration_is_shared_with_syntax_diagnostics
+    source = "---\ntags: [missing]\n...\n"
+
+    assert_empty investigate(source)
+    assert_equal [2], investigate(source, markdown: { "IgnoreFrontMatter" => false }).map(&:line)
+  end
+
   def test_supports_inline_disabling
     source = <<~MARKDOWN
       <!-- # rubocop:disable Markdown/Syntax -->
@@ -68,9 +75,9 @@ class RuboCop::Markdown::SyntaxTest < Minitest::Test
 
   private
 
-  def investigate(source, file: "test.md")
+  def investigate(source, file: "test.md", markdown: {})
     config = RuboCop::ConfigLoader.merge_with_default(
-      RuboCop::Config.new("Markdown/Syntax" => { "Enabled" => true }),
+      RuboCop::Config.new("Markdown" => markdown, "Markdown/Syntax" => { "Enabled" => true }),
       File.join(__dir__, ".rubocop.yml")
     )
     cop = RuboCop::Cop::Markdown::Syntax.new(config)

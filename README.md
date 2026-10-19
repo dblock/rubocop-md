@@ -159,9 +159,18 @@ Markdown/MaxLength:
   Max: false
 ```
 
-Both modes support `rubocop -a`. `Enabled: false` disables the cop entirely. Wrapping preserves list and blockquote prefixes and does not split inline code, links, inline HTML elements, or individual words; unbreakable content can therefore still exceed the limit and is reported without a correction. Unwrapping preserves intentional Markdown hard breaks, `<br>` boundaries, and line breaks inside these inline constructs. Code blocks, headings, tables, HTML blocks, and HTML-only paragraphs are ignored.
+Both modes support `rubocop -a`. `Enabled: false` disables the cop entirely. Wrapping preserves list and blockquote prefixes and does not split inline code, links, inline HTML elements, or individual words; unbreakable content can therefore still exceed the limit and is reported without a correction. Unwrapping preserves intentional Markdown hard breaks, `<br>` boundaries, and line breaks inside these inline constructs. Code blocks, headings, tables, YAML front matter at the start of a document, HTML blocks, and HTML-only paragraphs are ignored.
 
 Prose and Ruby snippets share the same parsed Markdown document, retaining compatibility with JRuby. Prose offenses are still reported when a Ruby snippet has invalid syntax, but RuboCop does not apply autocorrections to files with syntax errors.
+
+YAML front matter is ignored by default without changing its contents or shifting prose offense locations. It must appear at the beginning of the document, start with `---`, and end with `---` or `...`. To treat it as ordinary Markdown instead, configure:
+
+```yml
+Markdown:
+  IgnoreFrontMatter: false
+```
+
+`IgnoreFrontMatter` is a shared document-level setting, not specific to `Markdown/MaxLength`. Setting it to `false` does not enable YAML validation.
 
 ### But if I want to use inline disabling some directive like in classic RuboCop?
 

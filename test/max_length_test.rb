@@ -91,12 +91,47 @@ class RuboCop::Markdown::MaxLengthTest < Minitest::Test
     assert_format "Some\n`inline\ncode`\nhere\ncontinues.\n", source, max: 5
   end
 
+  def test_ignores_front_matter_and_preserves_original_locations
+    %w[--- ...].each do |closing|
+      source = <<~MARKDOWN
+        ---
+        title: A long title that remains unchanged.
+        description: |
+          Wrapped metadata
+          stays wrapped.
+        tags: [ruby, markdown]
+        #{closing}
+        First paragraph
+        continues here.
+      MARKDOWN
+      corrected, offenses = format_markdown(source, max: false)
+
+      assert_equal source.sub("First paragraph\ncontinues here.", "First paragraph continues here."),
+                   corrected
+      assert_equal [9], offenses.map(&:line)
+      assert_format source, source, max: 20
+    end
+  end
+
   def test_parser_warnings_are_not_written_to_stderr
     _, warnings = capture_io do
       format_markdown("[label][missing]\n", max: false, file: File.join(Dir.pwd, "test", "guide.md"))
     end
 
     assert_empty warnings
+  end
+
+  def test_does_not_treat_unclosed_or_non_initial_delimiters_as_front_matter
+    assert_format "---\nMetadata continues.\n", "---\nMetadata\ncontinues.\n", max: false
+    assert_format "Introduction.\n\n---\nMetadata continues.\n",
+                  "Introduction.\n\n---\nMetadata\ncontinues.\n", max: false
+  end
+
+  def test_front_matter_can_be_treated_as_ordinary_markdown
+    source = "---\ntitle: First\nsummary: Second\n...\n\nBody stays unwrapped.\n"
+    expected = "---\ntitle: First summary: Second ...\n\nBody stays unwrapped.\n"
+
+    assert_format expected, source, max: false, markdown: { "IgnoreFrontMatter" => false }
   end
 
   def test_ignores_html_only_paragraphs_but_formats_mixed_prose
@@ -232,9 +267,10 @@ class RuboCop::Markdown::MaxLengthTest < Minitest::Test
 
   private
 
-  def prose_cop(max)
+  def prose_cop(max, markdown: {})
     config = RuboCop::ConfigLoader.merge_with_default(
       RuboCop::Config.new(
+        "Markdown" => markdown,
         "Markdown/MaxLength" => { "Enabled" => true, "Max" => max }
       ),
       File.join(__dir__, ".rubocop.yml")
@@ -251,10 +287,10 @@ class RuboCop::Markdown::MaxLengthTest < Minitest::Test
     assert_equal corrected, repeated
   end
 
-  def format_markdown(source, max:, file: "test.md")
+  def format_markdown(source, max:, file: "test.md", markdown: {})
     first_offenses = nil
     20.times do
-      cop = prose_cop(max)
+      cop = prose_cop(max, markdown: markdown)
       processed = RuboCop::ProcessedSource.new(source, RuboCop::TargetRuby::DEFAULT_VERSION, file)
       processed.config = cop.config
       processed.registry = RuboCop::Cop::Registry.new([cop.class])
